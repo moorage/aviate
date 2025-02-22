@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Aviate Extension",
+  "version": "1.0",
+  "description": "Opens a URL in a new tab, waits for full load, extracts the HTML, and sends it to a native host for storage.",
+  "permissions": ["nativeMessaging", "storage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "scrape.html",
+    "default_title": "Scrape a page"
+  },
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import sys
+import struct
+import json
+import sqlite3
+import os
+import datetime
+
+# Default database path in case none is provided.
+DEFAULT_DB_PATH = os.path.expanduser("~/Projects/aviate/aviate.db")
+
+
+def read_message():
+    """Read a message from stdin using the native messaging protocol."""
+    raw_length = sys.stdin.buffer.read(4)
+    if len(raw_length) == 0:
+        sys.exit(0)
+    message_length = struct.unpack("<I", raw_length)[0]
+    message = sys.stdin.buffer.read(message_length).decode("utf-8")
+    return json.loads(message)
+
+
+def send_message(message_content):
+    """Send a message to stdout using the native messaging protocol."""
+    encoded_content = json.dumps(message_content).encode("utf-8")
+    sys.stdout.buffer.write(struct.pack("<I", len(encoded_content)))
+    sys.stdout.buffer.write(encoded_content)
+    sys.stdout.buffer.flush()
+
+
+def process_message(message):
+    """
+    Expect the message to be a JSON object with:
+      - "url": the URL being scraped
+      - "html": the HTML source code
+      - Optionally, "db_path": a string for the SQLite database file to use.
+    The function opens (or creates) the SQLite database at the given path,
+    creates the table if needed, inserts a record, and returns a JSON response.
+    """
+    db_to_use = message.get("db_path", DEFAULT_DB_PATH)
+    db_to_use = DEFAULT_DB_PATH if db_to_use is None or db_to_use == "" else db_to_use
+    # Open (or create) the SQLite database.
+    conn = sqlite3.connect(db_to_use)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+      CREATE TABLE IF NOT EXISTS scrapes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL,
+        html TEXT,
+        scraped_at TEXT NOT NULL
+      )
+    """
+    )
+    conn.commit()
+
+    url = message.get("url")
+    html = message.get("html")
+    scraped_at = datetime.datetime.utcnow().isoformat() + "Z"  # UTC timestamp
+
+    cursor.execute(
+        "INSERT INTO scrapes (url, html, scraped_at) VALUES (?, ?, ?)",
+        (url, html, scraped_at),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "url": url,
+        "scraped_at": scraped_at,
+        "db_used": db_to_use,
+    }
+
+
+def main():
+    try:
+        while True:
+            message = read_message()
+            response = process_message(message)
+            send_message(response)
+    except Exception as e:
+        send_message({"status": "error", "error": str(e)})
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

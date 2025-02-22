@@ -1,0 +1,7 @@
+{
+  "name": "org.aviate.aviate_native",
+  "description": "Native messaging host for Aviate",
+  "path": "/Users/USERNAME/Projects/aviate/native-messenger/aviate-native",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://eibfigkiplgpfjcjdfolpedageacdbnm/"]
+}
